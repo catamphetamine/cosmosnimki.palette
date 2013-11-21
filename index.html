@@ -1,0 +1,167 @@
+﻿<!DOCTYPE html>
+
+<!-- 
+Задание:
+https://docs.google.com/document/d/1ed5JbD5qbPDD8zBApWDFYdxNuFpzK108IwyGIXB3Tfs
+
+Запуск
+file:///C:/work/cosmosnimki.palette/index.html?picture=http://kosmosnimki.ru/TempDirectory/jstasks/src_image_example.png&palette=http://kosmosnimki.ru/TempDirectory/jstasks/legend_example.icxleg
+-->
+
+<html>
+	<head>
+		<title>Палитра</title>
+		
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+		<script src="http://coffeescript.org/extras/coffee-script.js"></script>
+		
+		<style>
+			body
+			{
+				margin: 0;
+			}
+			
+			canvas
+			{
+				display: none;
+			}
+			
+			p
+			{
+				width: 100%;
+				text-align: center;
+			}
+		</style>
+		
+		<script type="text/coffeescript">
+			# helpers
+			
+			is_IE = ->
+				return navigator.appName == 'Microsoft Internet Explorer'
+			
+			node_value = (node, child) ->
+				return node.querySelector(child).firstChild.nodeValue
+				
+			report = (error) ->
+				document.querySelector('p').firstChild.nodeValue = error
+
+			draw_image_data = (context, pixels) ->
+				fake_canvas = document.createElement('canvas')
+				fake_canvas.width = context.canvas.width
+				fake_canvas.height = context.canvas.height
+				
+				fake_canvas.getContext('2d').putImageData(pixels, 0, 0)
+				
+				context.drawImage(fake_canvas, 0, 0)
+					
+			Raw_pixel_helper = (array) ->
+				index = 0
+				
+				api = 
+					add: (element) -> 
+						array[index] = element
+						index++
+						return @
+						
+				return api
+			
+			Pixel_bytes = 4
+			
+			# main
+			
+			options = window.location.href.substring(window.location.href.indexOf('?') + 1)
+				
+			reducer = (options, key_and_value) ->
+				key_and_value = key_and_value.split('=')
+				options[key_and_value[0]] = key_and_value[1]
+				return options
+			
+			options = options.split('&').reduce(reducer, {})
+
+			$.support.cors = yes
+			
+			$ ->
+				canvas = document.querySelector('canvas')
+				painter = canvas.getContext('2d')
+
+				colorize = (palette) ->
+					pixels = painter.createImageData(canvas.width, canvas.height)
+					
+					try
+						coded_pixels = painter.getImageData(0, 0, canvas.width, canvas.height)
+					catch error
+						if is_IE() && error + '' == 'SecurityError'
+							throw new Error('CORS for images in IE is not supported')
+						else
+							throw error
+						
+					pixel_count = coded_pixels.data.length / Pixel_bytes
+					
+					raw_pixels = new Raw_pixel_helper(pixels.data)
+					
+					pixel = 0
+					while pixel < pixel_count
+						code = coded_pixels.data[pixel * Pixel_bytes] + 1
+						color = palette[code]
+						
+						raw_pixels.add(color.red).add(color.green).add(color.blue).add(color.opacity)
+						pixel++
+					
+					draw_image_data(painter, pixels)
+				
+				parse_palette = (palette) ->
+					palette = palette.querySelectorAll('ENTRY')
+						
+					colors = []
+					
+					for color_code in palette
+						color = color_code.querySelector('Color')
+						
+						color = 
+							red: node_value(color, 'Part_Red')
+							green: node_value(color, 'Part_Green')
+							blue: node_value(color, 'Part_Blue')
+							
+							opacity: node_value(color, 'Part_Density')
+						
+						code = node_value(color_code, 'Code')
+						
+						colors[code] = color
+						
+					return colors
+				
+				picture = new Image()
+				
+				picture.onload = ->
+					canvas.width = picture.width
+					canvas.height = picture.height
+					
+					painter.drawImage(picture, 0, 0)
+					
+					$.ajax
+						url: options.palette
+						
+					.success (palette) -> 
+						try
+							colorize(parse_palette(palette))
+							
+							document.querySelector('p').style.display = 'none'
+							document.querySelector('canvas').style.display = 'block'
+						catch error
+							report(error)
+						
+					.error (xhr, ajaxOptions, thrownError) ->
+						report(xhr.status + ': ' + thrownError)
+				
+				picture.crossOrigin = 'anonymous'		 
+				picture.src = options.picture
+				
+				report('Идёт загрузка…')
+		</script>
+	</head>
+	
+	<body>
+		<p> </p>
+		<canvas></canvas>
+	</body>
+</html>

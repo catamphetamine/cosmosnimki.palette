@@ -66,7 +66,7 @@ file:///C:/work/cosmosnimki.palette/index.html?picture=http://kosmosnimki.ru/Tem
 				return api
 			
 			Pixel_bytes = 4
-			
+
 			# main
 			
 			options = window.location.href.substring(window.location.href.indexOf('?') + 1)
@@ -85,6 +85,8 @@ file:///C:/work/cosmosnimki.palette/index.html?picture=http://kosmosnimki.ru/Tem
 				painter = canvas.getContext('2d')
 
 				colorize = (palette) ->
+					report('Раскраска изображения')
+					
 					pixels = painter.createImageData(canvas.width, canvas.height)
 					
 					try
@@ -107,7 +109,7 @@ file:///C:/work/cosmosnimki.palette/index.html?picture=http://kosmosnimki.ru/Tem
 						raw_pixels.add(color.red).add(color.green).add(color.blue).add(color.opacity)
 						pixel++
 					
-					draw_image_data(painter, pixels)
+					return pixels
 				
 				parse_palette = (palette) ->
 					palette = palette.querySelectorAll('ENTRY')
@@ -129,6 +131,65 @@ file:///C:/work/cosmosnimki.palette/index.html?picture=http://kosmosnimki.ru/Tem
 						colors[code] = color
 						
 					return colors
+					
+				median_filter = (image) ->
+					Window_size = 3
+				
+					filtered_image = painter.createImageData(image.width, image.height)
+
+					x = 0
+					while x < image.width
+						y = 0
+						while y < image.height
+							window_pixels = []
+							window_pixel_index = 0
+
+							u = 0
+							while u < Window_size
+								v = 0
+								while v < Window_size
+									global_window_pixel_index = ((x + u) + (y + v) * image.width) * Pixel_bytes
+									
+									red = image.data[global_window_pixel_index + 0]
+									green = image.data[global_window_pixel_index + 1]
+									blue = image.data[global_window_pixel_index + 2]
+									
+									window_pixels.push
+										red: red
+										green: green
+										blue: blue
+										grayscale: parseInt(parseFloat('0.33') * (parseFloat(red) + parseFloat(green) + parseFloat(blue)))
+								
+									v++
+								u++
+							
+							window_pixels.sort((a, b) -> a.grayscale - b.grayscale)
+						
+							pixel_index = (x + y * image.width) * Pixel_bytes
+							
+							median_index = parseInt(Window_size * Window_size / 2)
+							median_pixel = window_pixels[median_index]
+							
+							# r, g, b
+							filtered_image.data[pixel_index + 0] = median_pixel.red
+							filtered_image.data[pixel_index + 1] = median_pixel.green
+							filtered_image.data[pixel_index + 2] = median_pixel.blue
+							
+							# keep original alpha
+							filtered_image.data[pixel_index + 3] = image.data[pixel_index + 3]
+							
+							y++
+							
+						x++
+						
+					return filtered_image
+				
+				noise_reduction = (image) ->
+					report('Фильтрация изображения')
+					
+					return image
+					
+					return median_filter(image)
 				
 				picture = new Image()
 				
@@ -143,7 +204,7 @@ file:///C:/work/cosmosnimki.palette/index.html?picture=http://kosmosnimki.ru/Tem
 						
 					.success (palette) -> 
 						try
-							colorize(parse_palette(palette))
+							draw_image_data(painter, noise_reduction(colorize(parse_palette(palette))))
 							
 							document.querySelector('p').style.display = 'none'
 							document.querySelector('canvas').style.display = 'block'

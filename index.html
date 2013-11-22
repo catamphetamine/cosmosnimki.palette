@@ -187,10 +187,12 @@ file:///C:/work/cosmosnimki.palette/index.html?picture=http://kosmosnimki.ru/Tem
 				noise_reduction = (image) ->
 					report('Фильтрация изображения')
 					
-					return image
+					switch options.filter
+						when 'median'
+							return median_filter(image)
+						else	
+							return image
 					
-					return median_filter(image)
-				
 				picture = new Image()
 				
 				picture.onload = ->

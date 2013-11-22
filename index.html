@@ -30,6 +30,7 @@ file:///C:/work/cosmosnimki.palette/index.html?picture=http://kosmosnimki.ru/Tem
 			{
 				width: 100%;
 				text-align: center;
+				padding-left: 0;
 			}
 		</style>
 		
@@ -42,8 +43,8 @@ file:///C:/work/cosmosnimki.palette/index.html?picture=http://kosmosnimki.ru/Tem
 			node_value = (node, child) ->
 				return node.querySelector(child).firstChild.nodeValue
 				
-			report = (error) ->
-				document.querySelector('p').firstChild.nodeValue = error
+			report = (message) ->
+				document.querySelector('p').firstChild.nodeValue = message
 
 			draw_image_data = (context, pixels) ->
 				fake_canvas = document.createElement('canvas')
@@ -54,17 +55,6 @@ file:///C:/work/cosmosnimki.palette/index.html?picture=http://kosmosnimki.ru/Tem
 				
 				context.drawImage(fake_canvas, 0, 0)
 					
-			Raw_pixel_helper = (array) ->
-				index = 0
-				
-				api = 
-					add: (element) -> 
-						array[index] = element
-						index++
-						return @
-						
-				return api
-			
 			Pixel_bytes = 4
 
 			# main
@@ -99,14 +89,24 @@ file:///C:/work/cosmosnimki.palette/index.html?picture=http://kosmosnimki.ru/Tem
 						
 					pixel_count = coded_pixels.data.length / Pixel_bytes
 					
-					raw_pixels = new Raw_pixel_helper(pixels.data)
-					
 					pixel = 0
+					index = 0
 					while pixel < pixel_count
-						code = coded_pixels.data[pixel * Pixel_bytes] + 1
+						code = coded_pixels.data[index] + 1
 						color = palette[code]
 						
-						raw_pixels.add(color.red).add(color.green).add(color.blue).add(color.opacity)
+						pixels.data[index] = color.red
+						index++
+						
+						pixels.data[index] = color.green
+						index++
+						
+						pixels.data[index] = color.blue
+						index++
+						
+						pixels.data[index] = color.opacity
+						index++
+						
 						pixel++
 					
 					return pixels
